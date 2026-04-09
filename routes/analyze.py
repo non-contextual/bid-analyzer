@@ -12,17 +12,23 @@ POST /analyze 端点。
 
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from analysis.deepseek_client import call_deepseek
 from analysis.prompt_builder import build_prompt
 from parsers.detector import detect_format
 from parsers.html_parser import parse_html
 from parsers.pdf_parser import parse_pdf
+from parsers.url_parser import parse_url
 from parsers.word_parser import parse_word
 
 router = APIRouter()
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB，超过此大小直接拒绝
+
+
+class UrlRequest(BaseModel):
+    url: str
 
 
 @router.post("/analyze")
@@ -98,4 +104,27 @@ async def analyze_announcement(file: UploadFile) -> JSONResponse:
 
     # ── 5. 返回结果 ──────────────────────────────────────────────
     result["ocr_used"] = ocr_used  # 告知前端是否用了 OCR（方便显示进度提示）
+    return JSONResponse(content=result)
+
+
+@router.post("/analyze-url")
+async def analyze_announcement_url(request: UrlRequest) -> JSONResponse:
+    """
+    分析网页链接中的采购公告，返回投标可行性决策简报。
+
+    Request body: { "url": "https://..." }
+    Response: 同 /analyze（无 ocr_used 字段）
+    """
+    try:
+        text = parse_url(request.url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    try:
+        messages = build_prompt(text)
+        result = call_deepseek(messages)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    result["ocr_used"] = False
     return JSONResponse(content=result)
