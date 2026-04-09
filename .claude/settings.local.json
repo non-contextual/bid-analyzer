@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git --version)",
+      "Bash(gh --version)",
+      "Bash(gh auth:*)",
+      "Bash(venv/Scripts/python.exe -m pytest tests/ -v --tb=short)",
+      "Bash(findstr /R \"PASSED FAILED ERROR passed failed\")",
+      "Bash(venv/Scripts/python.exe -m pytest tests/ --tb=short)"
+    ]
+  }
+}
