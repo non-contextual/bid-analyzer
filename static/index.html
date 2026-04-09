@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>招标公告分析 · AI 投标助手</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #6e6e73;
+      margin-bottom: 32px;
+      font-size: 15px;
+    }
+
+    /* 上传区域 */
+    .upload-card {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+    }
+
+    .drop-zone {
+      border: 2px dashed #d2d2d7;
+      border-radius: 12px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 20px;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: #0071e3;
+      background: #f0f6ff;
+    }
+
+    .drop-zone .icon { font-size: 40px; margin-bottom: 12px; }
+
+    .drop-zone p {
+      color: #6e6e73;
+      font-size: 14px;
+    }
+
+    .drop-zone p strong { color: #1d1d1f; }
+
+    #file-input { display: none; }
+
+    .selected-file {
+      display: none;
+      background: #f0f6ff;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: #0071e3;
+      margin-bottom: 16px;
+      word-break: break-all;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: #0071e3;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn:hover:not(:disabled) { background: #0077ed; }
+    .btn:disabled { background: #a1c4f7; cursor: not-allowed; }
+
+    /* 进度状态 */
+    .status {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      color: #6e6e73;
+      font-size: 14px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #d2d2d7;
+      border-top-color: #0071e3;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 结果卡片 */
+    .result-card {
+      display: none;
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+
+    .verdict-banner {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px 24px;
+      border-radius: 12px;
+      margin-bottom: 28px;
+    }
+
+    .verdict-banner.go    { background: #e8f5e9; }
+    .verdict-banner.nogo  { background: #fce4ec; }
+    .verdict-banner.maybe { background: #fff8e1; }
+
+    .verdict-emoji { font-size: 36px; }
+
+    .verdict-text h2 { font-size: 22px; font-weight: 700; }
+    .verdict-text.go    h2 { color: #2e7d32; }
+    .verdict-text.nogo  h2 { color: #c62828; }
+    .verdict-text.maybe h2 { color: #e65100; }
+    .verdict-text p { font-size: 14px; color: #555; margin-top: 4px; }
+
+    /* 评分条 */
+    .scores {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .score-item {
+      background: #f5f5f7;
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .score-label {
+      font-size: 12px;
+      color: #6e6e73;
+      margin-bottom: 8px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .score-bar {
+      height: 6px;
+      background: #e0e0e0;
+      border-radius: 3px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+
+    .score-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+
+    .score-fill.budget    { background: #34c759; }
+    .score-fill.competition { background: #ff9500; }
+
+    .score-value { font-size: 20px; font-weight: 700; }
+
+    /* 详细分析 */
+    .section { margin-bottom: 24px; }
+    .section h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #6e6e73;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .section p {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #333;
+    }
+
+    /* 资质清单 */
+    .qual-list { list-style: none; }
+    .qual-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .qual-list li:last-child { border-bottom: none; }
+    .qual-badge {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+    .badge-pass    { background: #e8f5e9; color: #2e7d32; }
+    .badge-fail    { background: #fce4ec; color: #c62828; }
+    .badge-unknown { background: #f5f5f7; color: #999;    }
+
+    /* 错误提示 */
+    .error-card {
+      display: none;
+      background: #fce4ec;
+      border-radius: 12px;
+      padding: 20px 24px;
+      color: #c62828;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .reset-btn {
+      display: none;
+      width: 100%;
+      padding: 12px;
+      background: none;
+      border: 2px solid #0071e3;
+      color: #0071e3;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: all 0.2s;
+    }
+
+    .reset-btn:hover { background: #f0f6ff; }
+
+    .ocr-notice {
+      display: none;
+      font-size: 12px;
+      color: #6e6e73;
+      text-align: center;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>招标公告分析</h1>
+    <p class="subtitle">上传采购公告，AI 在 30 秒内告诉你值不值得投标</p>
+
+    <!-- 上传区域 -->
+    <div class="upload-card" id="upload-section">
+      <div class="drop-zone" id="drop-zone">
+        <div class="icon">📄</div>
+        <p><strong>点击选择文件</strong>，或拖拽到此处</p>
+        <p style="margin-top:6px">支持 PDF、Word (.docx)、HTML 文件 · 最大 10MB</p>
+      </div>
+
+      <input type="file" id="file-input" accept=".pdf,.docx,.doc,.html,.htm">
+
+      <div class="selected-file" id="selected-file-name"></div>
+
+      <button class="btn" id="analyze-btn" disabled>开始分析</button>
+    </div>
+
+    <!-- 进度状态 -->
+    <div class="status" id="status">
+      <span class="spinner"></span>
+      <span id="status-text">正在分析...</span>
+    </div>
+
+    <!-- 错误提示 -->
+    <div class="error-card" id="error-card"></div>
+
+    <!-- 分析结果 -->
+    <div class="result-card" id="result-card">
+      <div class="verdict-banner" id="verdict-banner">
+        <div class="verdict-emoji" id="verdict-emoji"></div>
+        <div class="verdict-text" id="verdict-text">
+          <h2 id="verdict-title"></h2>
+          <p id="verdict-reason"></p>
+        </div>
+      </div>
+
+      <div class="scores">
+        <div class="score-item">
+          <div class="score-label">预算吸引力</div>
+          <div class="score-bar"><div class="score-fill budget" id="budget-fill"></div></div>
+          <div class="score-value" id="budget-score"></div>
+          <p style="font-size:13px;color:#6e6e73;margin-top:4px" id="budget-analysis"></p>
+        </div>
+        <div class="score-item">
+          <div class="score-label">竞争密度风险</div>
+          <div class="score-bar"><div class="score-fill competition" id="competition-fill"></div></div>
+          <div class="score-value" id="competition-score"></div>
+          <p style="font-size:13px;color:#6e6e73;margin-top:4px" id="competition-analysis"></p>
+        </div>
+      </div>
+
+      <div class="section" id="qual-section">
+        <h3>资质要求</h3>
+        <ul class="qual-list" id="qual-list"></ul>
+      </div>
+
+      <div class="section">
+        <h3>综合评估</h3>
+        <p id="summary-text"></p>
+      </div>
+
+      <div class="ocr-notice" id="ocr-notice">⚡ 本次分析使用了 OCR 文字识别（扫描件 PDF），识别结果可能有误差，建议结合原文核对</div>
+    </div>
+
+    <button class="reset-btn" id="reset-btn">分析另一份公告</button>
+  </div>
+
+  <script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const selectedFileName = document.getElementById('selected-file-name');
+    const statusEl = document.getElementById('status');
+    const statusText = document.getElementById('status-text');
+    const resultCard = document.getElementById('result-card');
+    const errorCard = document.getElementById('error-card');
+    const resetBtn = document.getElementById('reset-btn');
+
+    let selectedFile = null;
+
+    // 点击上传区域
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    // 拖拽上传
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) setFile(file);
+    });
+
+    // 文件选择
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) setFile(fileInput.files[0]);
+    });
+
+    function setFile(file) {
+      selectedFile = file;
+      selectedFileName.textContent = '📎 ' + file.name + '  (' + (file.size / 1024).toFixed(0) + ' KB)';
+      selectedFileName.style.display = 'block';
+      analyzeBtn.disabled = false;
+    }
+
+    // 提交分析
+    analyzeBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      // 显示进度
+      document.getElementById('upload-section').style.display = 'none';
+      statusEl.style.display = 'block';
+      errorCard.style.display = 'none';
+      resultCard.style.display = 'none';
+      resetBtn.style.display = 'none';
+
+      // 扫描件可能较慢，提前提示
+      const isPdf = selectedFile.name.toLowerCase().endsWith('.pdf');
+      statusText.textContent = isPdf
+        ? '正在分析... 如果是扫描件 PDF，可能需要 1-2 分钟'
+        : '正在分析...';
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      try {
+        const resp = await fetch('/analyze', { method: 'POST', body: formData });
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          showError(data.detail || '分析失败，请重试');
+          return;
+        }
+
+        showResult(data);
+      } catch (e) {
+        showError('网络连接失败，请检查服务是否运行后重试。');
+      }
+    });
+
+    function showError(msg) {
+      statusEl.style.display = 'none';
+      errorCard.textContent = '⚠️ ' + msg;
+      errorCard.style.display = 'block';
+      resetBtn.style.display = 'block';
+    }
+
+    function showResult(data) {
+      statusEl.style.display = 'none';
+
+      // 判决横幅
+      const verdictMap = {
+        '投':   { cls: 'go',    emoji: '✅', label: '建议投标' },
+        '不投': { cls: 'nogo',  emoji: '❌', label: '建议不投' },
+        '谨慎投': { cls: 'maybe', emoji: '⚠️', label: '谨慎考虑' },
+      };
+      const v = verdictMap[data.verdict] || { cls: 'maybe', emoji: '❓', label: data.verdict };
+      const banner = document.getElementById('verdict-banner');
+      const vText = document.getElementById('verdict-text');
+      banner.className = 'verdict-banner ' + v.cls;
+      vText.className = 'verdict-text ' + v.cls;
+      document.getElementById('verdict-emoji').textContent = v.emoji;
+      document.getElementById('verdict-title').textContent = v.label;
+      document.getElementById('verdict-reason').textContent = data.verdict_reason || '';
+
+      // 评分条（1-5 → 20%-100%）
+      const budgetPct = ((data.budget_score || 3) / 5 * 100) + '%';
+      document.getElementById('budget-fill').style.width = budgetPct;
+      document.getElementById('budget-score').textContent = (data.budget_score || 3) + '/5';
+      document.getElementById('budget-analysis').textContent = data.budget_analysis || '';
+
+      // 竞争密度：分数越低 = 风险越高，颜色用橙色警示
+      const compPct = ((data.competition_score || 3) / 5 * 100) + '%';
+      document.getElementById('competition-fill').style.width = compPct;
+      document.getElementById('competition-score').textContent = (data.competition_score || 3) + '/5';
+      document.getElementById('competition-analysis').textContent = data.competition_analysis || '';
+
+      // 资质清单
+      const qualList = document.getElementById('qual-list');
+      qualList.innerHTML = '';
+      const quals = data.qualifications || [];
+      if (quals.length > 0) {
+        quals.forEach(q => {
+          const li = document.createElement('li');
+          const badge = document.createElement('span');
+          badge.className = 'qual-badge badge-' + (q.status || 'unknown');
+          badge.textContent = q.status === 'pass' ? '✓' : q.status === 'fail' ? '✗' : '?';
+          li.appendChild(badge);
+          li.appendChild(document.createTextNode(q.requirement));
+          qualList.appendChild(li);
+        });
+        document.getElementById('qual-section').style.display = 'block';
+      } else {
+        document.getElementById('qual-section').style.display = 'none';
+      }
+
+      // 综合评估
+      document.getElementById('summary-text').textContent = data.summary || '';
+
+      // OCR 提示
+      if (data.ocr_used) {
+        document.getElementById('ocr-notice').style.display = 'block';
+      }
+
+      resultCard.style.display = 'block';
+      resetBtn.style.display = 'block';
+    }
+
+    // 重置
+    resetBtn.addEventListener('click', () => {
+      selectedFile = null;
+      fileInput.value = '';
+      selectedFileName.style.display = 'none';
+      analyzeBtn.disabled = true;
+      resultCard.style.display = 'none';
+      errorCard.style.display = 'none';
+      resetBtn.style.display = 'none';
+      document.getElementById('upload-section').style.display = 'block';
+      document.getElementById('ocr-notice').style.display = 'none';
+    });
+  </script>
+</body>
+</html>
