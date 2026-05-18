@@ -1,4 +1,4 @@
-# tender-ai
+# Bid Analyzer
 
 > 其他语言：[English](./README.md) · 简体中文
 
